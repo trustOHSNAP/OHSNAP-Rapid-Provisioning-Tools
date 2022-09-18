@@ -43,6 +43,9 @@ def machdep_run_command_as_superuser(cmd):
 def machdep_mounted_removable_devices():
     return machdep().mounted_removable_devices()
 
+def machdep_platform():
+    return os.uname().sysname
+    
 
 #
 # PRIVATE API

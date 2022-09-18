@@ -22,9 +22,13 @@
 # masterDisks.py #
 ##################
 
+PROGRAM_DESCRIPTION = 'Generate installation boot disk and set packages disk for one or more hosts'
+
 
 # INTERNAL LIBRARIES
+from OortArgs import OortArgs # must come first
 from OortCommon import *
+import OortCommon
 from createSiteFiles import generateSitePackage, autoinstallConfigurationRootPathForHost
 
 
@@ -446,7 +450,7 @@ def downloadImagesForHost(hostdef):
     openBSDVersionString = openBSDVersion(hostdef)
     
     # Create download directories
-    outputDirs = prepareDownloadDirectories(hostdef, BUILD_ROOT_PATH)
+    outputDirs = prepareDownloadDirectories(hostdef, configValue(CONFIG_KEY_BUILD_ROOT_PATH))
     debug("Download directories: %r" % outputDirs)
     
     # Determine URL for downloading install sets based on OpenBSD version and architecture
@@ -563,7 +567,7 @@ def stageImagesForHost(hostdef, downloadDirPaths):
     boardName = hostdef[HOSTMAP_FIELD_BOARD]
     
     # Create staging directories
-    outputDirs = prepareStagingDirectories(hostdef, BUILD_ROOT_PATH)
+    outputDirs = prepareStagingDirectories(hostdef, configValue(CONFIG_KEY_BUILD_ROOT_PATH))
     debug("Staging directories: %r" % outputDirs)
 
     #
@@ -670,18 +674,16 @@ def generateMasteringImageForHostname(hostname):
 
 
 def main(argv):
-    assertNotRootUser()
-    
-    hostnames = None
-    completedCount = 0
-    
-    # Check arg list
-    if len(sys.argv) > 2:
-        usage()
-    elif len(sys.argv) == 2:
-        hostnames = [ sys.argv[1] ]
+    global PROGRAM_DESCRIPTION
+    argParser = OortArgs(PROGRAM_DESCRIPTION)
+    argParser.addArg("hostnames", nargs='*', help="Name(s) of host(s) for which to generate mastering images")
+    args = OortInit(argParser)
 
-    if hostnames == None:
+    hostnames = args.hostnames
+
+    completedCount = 0
+
+    if hostnames == None or len(hostnames) == 0:
         hostnames = list()
         for hostdef in OortCommon.gHostMap:
             if not hostdef[HOSTMAP_FIELD_ROLE] == HOST_ROLE_VIRTUAL: # skip virtual entries
