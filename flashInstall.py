@@ -126,14 +126,6 @@ def selectRemovableDevice():
     return chosenDeviceInfo
     
 
-def validateNode(nodeName):
-    assert re.fullmatch(r'^disk[0-9]{1,2}$', nodeName) is not None, "nodeName '%s' is invalid!" % nodeName
-    nodePath = os.path.join(r'/dev/', nodeName)
-    assert os.path.exists(nodePath)
-    assert not os.path.isdir(nodePath)
-    assert not os.path.isfile(nodePath)
-
-
 def confirmCommand(cmd):
     global gAutoAcceptYes
     if gAutoAcceptYes:
@@ -142,38 +134,27 @@ def confirmCommand(cmd):
     return userInput.lower() == 'y'
         
 
-def runCommand(cmd, destructive=True, superuser=False):
+def runCommand(cmd: list, destructive=True, superuser=False):
     if superuser:
         commandPromptSymbol = '# '
     else:
         commandPromptSymbol = '$ '
         
-    if not destructive or confirmCommand(commandPromptSymbol + ' ' + cmd):
-        debug("Executing command:  %s %s" % (commandPromptSymbol, cmd))
+    cmdString = ' '.join(cmd)
+    if not destructive or confirmCommand(commandPromptSymbol + ' ' + cmdString):
+        debug("Executing command:  %s %s" % (commandPromptSymbol, cmdString))
         if superuser:
             exitCode = machdep_run_command_as_superuser(cmd)
         else:
-            exitCode = os.system(cmd)
+            exitCode = machdep_run_command(cmd)
         if exitCode != 0:
-            error("%s '%s' exited with code %i (%s)" % (commandPromptSymbol, cmd, exitCode, os.strerror(exitCode)))
+            error("%s '%s' exited with code %i (%s)" % (commandPromptSymbol, cmdString, exitCode, os.strerror(exitCode)))
     else:
         error("Aborting.")
 
 
-def unmountDisk(nodeName):
-    unmountCommand = 'diskutil unmountDisk ' + nodeName
-    runCommand(unmountCommand, destructive=False)
-
-
-def eraseNode(nodeName):
-    validateNode(nodeName)
-    print("Erasing %s..." % nodeName)
-    eraseCommand = 'diskutil eraseDisk MS-DOS OPENBSD %s' % nodeName
-    runCommand(eraseCommand)
-
-
 def flashNode(nodeName, manifest):
-    validateNode(nodeName)
+    machdep_validate_disk_node(nodeName)
     print("Flashing %s..." % nodeName)
     flashCommands = list()
     debug("Preparing commands from manifest %r" % manifest)
@@ -183,29 +164,29 @@ def flashNode(nodeName, manifest):
         assert not containsWhitespace(imagePath), "Absolute path ('%s') to image file '%s' must not contain any whitespace" % (imagePath, imageName)
         assert os.path.isabs(imagePath)
         assert os.path.isfile(imagePath)
-        command = "dd if=%s of=/dev/%s" % (imagePath, nodeName)
+        command = ['dd', 'if=%s' % imagePath, 'of=/dev/%s' % nodeName]
         if 'ddOptions' in imageInfo:
             for k,v in imageInfo['ddOptions'].items():
                 assert not containsWhitespace(k)
                 assert not containsWhitespace(v)
-                command += " %s=%s" % (k, v)
+                command.append('%s=%s' % (k, v))
 
-        debug("Adding command:  %s" % command)
+        debug("Adding command:  %r" % command)
         flashCommands.append(command)
 
     for command in flashCommands:
-        unmountDisk(nodeName)
+        machdep_unmount_disk(nodeName)
         runCommand(command, destructive=True, superuser=True)
         print("Waiting for disk to reappear...")
         time.sleep(5)
 
     print("Finished. %s is ready to install OpenBSD." % nodeName)
     input("\nPress Enter to eject %s...\n" % nodeName)
-    unmountDisk(nodeName)
+    machdep_unmount_disk(nodeName)
     
 
 def eraseAndFlashNode(nodeName, diskManifest):
-    eraseNode(nodeName)
+    machdep_erase_disk(nodeName)
     flashNode(nodeName, diskManifest)
 
 

@@ -244,7 +244,7 @@ wait
         
         if shouldSpawn:
             print("Spinning up background tasks...")
-            machdep_run_command_as_superuser(spawnScriptPath)
+            machdep_run_command_as_superuser([ spawnScriptPath ])
 
 
 def main(argv):

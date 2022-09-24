@@ -37,11 +37,23 @@ if TYPE_CHECKING:
 def machdepInit():
     machdep()
 
-def machdep_run_command_as_superuser(cmd):
-    return machdep().run_command_as_superuser(cmd)
+def machdep_run_command(cmd: list):
+    return machdep().run_command(cmd)
+
+def machdep_run_command_as_superuser(cmd: list):
+    return machdep().run_command(cmd, superuser=True)
 
 def machdep_mounted_removable_devices():
     return machdep().mounted_removable_devices()
+
+def machdep_unmount_disk(nodeName):
+    return machdep().unmount_disk(nodeName)
+
+def machdep_erase_disk(nodeName):
+    return machdep().erase_disk(nodeName)
+
+def machdep_validate_disk_node(nodeName):
+    return machdep().validate_disk_node(nodeName)
 
 
 #
@@ -57,10 +69,19 @@ gMachdep = None
 
 class Machdep(object):
 
-    def run_command_as_superuser(self, cmd):
+    def run_command(self, cmd: list, superuser = False):
         raise NotImplementedError()
 
     def mounted_removable_devices(self):
+        raise NotImplementedError()
+
+    def unmount_disk(self, nodeName):
+        raise NotImplementedError()
+
+    def erase_disk(self, nodeName):
+        raise NotImplementedError()
+
+    def validate_disk_node(self, nodeName):
         raise NotImplementedError()
 
     

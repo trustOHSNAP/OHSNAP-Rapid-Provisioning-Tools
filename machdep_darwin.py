@@ -25,7 +25,8 @@ from __future__ import annotations
 
 # STANDARD LIBRARIES
 import os
-import shlex
+import re
+import subprocess
 
 #
 # Try to avoid import recursion
@@ -45,27 +46,21 @@ class Darwin:
     #
     def __init__(self: Machdep):
         pass
-            
-    def run_command_as_superuser(self, cmd):
+
+
+    def run_command(self, cmd: list, superuser = False):
         exitCode = 0
 
-        rawSystemCommandComponents = [
-            "osascript",
-            "-e",
-            "do shell script %s "
-            "with administrator privileges "
-            "without altering line endings"
-            % Darwin.quote_applescript(shlex.quote(cmd))
-        ]
-
-        rawSystemCommand = shlex.join(rawSystemCommandComponents)
-
         from OortCommon import debug
-        debug("rawSystemCommand = %s" % rawSystemCommand)
 
-        exitCode = os.system(rawSystemCommand)
+        debug("run_command(cmd = %r, superuser = %r)" % (cmd, superuser))
+
+        if superuser:
+            cmd.insert(0, 'sudo')
+
+        output = subprocess.run(cmd, capture_output=True)
     
-        return exitCode
+        return output.returncode
 
 
     def mounted_removable_devices(self):
@@ -73,16 +68,22 @@ class Darwin:
         from iokitBridge import iokitGetMountedRemovableDevices
         return iokitGetMountedRemovableDevices()
 
-    #
-    # Private API
-    #
-    @staticmethod 
-    def quote_applescript(string):
-        charmap = {
-            "\n": "\\n",
-            "\r": "\\r",
-            "\t": "\\t",
-            "\"": "\\\"",
-            "\\": "\\\\",
-        }
-        return '"%s"' % "".join(charmap.get(char, char) for char in string)
+
+    def unmount_disk(self, nodeName):
+        unmountCommand = ['diskutil', 'unmountDisk', nodeName]
+        self.run_command(unmountCommand)
+
+
+    def erase_disk(self, nodeName):
+        self.validate_disk_node(nodeName)
+        print("Erasing %s..." % nodeName)
+        eraseCommand = ['diskutil', 'eraseDisk', 'MS-DOS', 'OPENBSD', nodeName]
+        self.run_command(eraseCommand)
+
+
+    def validate_disk_node(self, nodeName):
+        assert re.fullmatch(r'^disk[0-9]{1,2}$', nodeName) is not None, "nodeName '%s' is invalid!" % nodeName
+        nodePath = os.path.join(r'/dev/', nodeName)
+        assert os.path.exists(nodePath)
+        assert not os.path.isdir(nodePath)
+        assert not os.path.isfile(nodePath)
