@@ -57,6 +57,11 @@ class OpenBSD:
         if superuser:
             cmd.insert(0, 'doas')
 
-        output = subprocess.run(cmd, capture_output=True)
+        try:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=1, universal_newlines=True) as cmd:
+                for line in cmd.stdout:
+                    print(line, end='')
+        except KeyboardInterrupt:
+            cmd.send_signal(signal.SIGINT)
     
-        return output.returncode
+        return cmd.returncode

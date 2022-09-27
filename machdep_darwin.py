@@ -26,6 +26,7 @@ from __future__ import annotations
 # STANDARD LIBRARIES
 import os
 import re
+import signal
 import subprocess
 
 #
@@ -58,9 +59,14 @@ class Darwin:
         if superuser:
             cmd.insert(0, 'sudo')
 
-        output = subprocess.run(cmd, capture_output=True)
+        try:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=1, universal_newlines=True) as cmd:
+                for line in cmd.stdout:
+                    print(line, end='')
+        except KeyboardInterrupt:
+            cmd.send_signal(signal.SIGINT)
     
-        return output.returncode
+        return cmd.returncode
 
 
     def mounted_removable_devices(self):
