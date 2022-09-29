@@ -349,8 +349,6 @@ def locateConfigDirectory():
     # 2. The OORTCONFIGDIR environment variable
     # 3. An .oortconfigpath file in user's home directory, containing the path to oort-config
     # 4. An .oortconfig directory existing in the user's home directory containing the actual configuration
-    configDirPath = None
-
     debug("All CLI args: %r" % OortArgs().getArgs())
 
     # 1. The -c / --config-dir command line argument
@@ -382,7 +380,7 @@ def locateConfigDirectory():
     if os.path.isdir(configDirPath):
         return configDirPath
     
-    return configDirPath
+    return None
 
 
 def readConfigFile():
@@ -457,7 +455,7 @@ def OortInit(argParser: OortArgs):
     
     # Find the oort-config directory
     configDirPath = locateConfigDirectory()
-    assert os.path.isdir(configDirPath), "A valid oort-config directory could not be found. You must specify its absolute path via the -c/--config-dir argument, the " + CONFIG_DIR_ENV_VAR_NAME + " environment variable, or the ~/" + CONFIG_DIR_ALIAS_FILENAME + " file, or by storing your configuration in the ~/" + CONFIG_DIR_DOT_DIRNAME + " directory."
+    assert configDirPath and os.path.isdir(configDirPath), "A valid oort-config directory could not be found. You must specify its absolute path via the -c/--config-dir argument, the " + CONFIG_DIR_ENV_VAR_NAME + " environment variable, or the ~/" + CONFIG_DIR_ALIAS_FILENAME + " file, or by storing your configuration in the ~/" + CONFIG_DIR_DOT_DIRNAME + " directory."
 
     # Change current directory to oort-config directory
     os.chdir(configDirPath)
