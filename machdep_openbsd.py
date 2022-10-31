@@ -25,6 +25,7 @@ from __future__ import annotations
 
 # STANDARD LIBRARIES
 import os
+import signal
 import subprocess
 
 #
