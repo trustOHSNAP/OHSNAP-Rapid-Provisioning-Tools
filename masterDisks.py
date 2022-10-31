@@ -280,6 +280,7 @@ def bootloaderPackagesInfoForHost(hostdef):
 
         # In general, each board may specify different bootloader files
         if  boardName == "rockpi4" or \
+            boardName == "rock64" or \
             boardName == "rockpro64" or \
             boardName == "pinebookpro":
             bootloaderPackagesInfo['u-boot']['tarContentsExtractBoardChildPaths'] = [
