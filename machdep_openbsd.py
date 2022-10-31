@@ -25,6 +25,7 @@ from __future__ import annotations
 
 # STANDARD LIBRARIES
 import os
+import subprocess
 
 #
 # Try to avoid import recursion
@@ -39,15 +40,23 @@ if TYPE_CHECKING:
 #
 class OpenBSD:
     
+    #
+    # Public API
+    #
     def __init__(self: Machdep):
         pass
         
-    def run_command_as_superuser(self, cmd):
+
+    def run_command(self, cmd: list, superuser = False):
         exitCode = 0
 
-        rawSystemCommand = "doas " + cmd
-        debug("rawSystemCommand = %s" % rawSystemCommand)
+        from OortCommon import debug
 
-        exitCode = os.system(rawSystemCommand)
+        debug("run_command(cmd = %r, superuser = %r)" % (cmd, superuser))
+
+        if superuser:
+            cmd.insert(0, 'doas')
+
+        output = subprocess.run(cmd, capture_output=True)
     
-        return exitCode
+        return output.returncode
