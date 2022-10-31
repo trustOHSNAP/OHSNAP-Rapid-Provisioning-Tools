@@ -22,8 +22,11 @@
 # flashInstall.py #
 ###################
 
+PROGRAM_DESCRIPTION = 'Erase a removable storage device and write the OpenBSD installer image onto it.'
+
 
 # INTERNAL LIBRARIES
+from OortArgs import OortArgs # must come first
 from OortCommon import *
 import masterDisks
 from masterDisks import generateMasteringImageForHostname
@@ -191,13 +194,11 @@ def eraseAndFlashNode(nodeName, diskManifest):
 
 
 def main(argv):
-    assertNotRootUser()
-
-    parser = argparse.ArgumentParser(description='Erase a removable storage device and write the OpenBSD installer image onto it.')
-    parser.add_argument("hostname", help="Name of host for which to create the installer")
-    parser.add_argument("-y", "--yes", action="store_true", help="Auto-accept confirmations to execute system commands")
-    parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], help="increase output verbosity")
-    args = parser.parse_args()
+    global PROGRAM_DESCRIPTION
+    argParser = OortArgs(PROGRAM_DESCRIPTION)
+    argParser.addArg("hostname", help="Name of host for which to create the installer disk")
+    argParser.addArg("-y", "--yes", action="store_true", help="Auto-accept confirmations to execute system commands")
+    args = OortInit(argParser)
 
     hostname = args.hostname
     global gAutoAcceptYes

@@ -70,6 +70,8 @@ INSTRUCTIONS GO HERE
 
 - `createSiteFiles`: There is no way to edit or append a file instead of overriding it wholesale
 - `autoinstall`: Need a setup script to download and compile `dnsmasq` into `machdep` directory
+- Need a `setup.py` command for guiding the user through initial setup
+- Need a standalone `oort` command for invoking main features
 - ALL: Linux host OS is planned but not yet supported
 - ALL: Windows host OS is specifically unsupported and is unlikely to be supported without external code contributions
 - ALL: The code will likely need a total rewrite to make it cleaner, more uniform, and more Pythonic
