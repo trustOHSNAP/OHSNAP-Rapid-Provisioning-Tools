@@ -55,7 +55,9 @@ def machdep_erase_disk(nodeName):
 def machdep_validate_disk_node(nodeName):
     return machdep().validate_disk_node(nodeName)
 
-
+def machdep_platform():
+    return os.uname().sysname
+    
 #
 # PRIVATE API
 #

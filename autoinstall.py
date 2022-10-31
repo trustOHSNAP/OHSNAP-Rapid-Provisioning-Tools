@@ -22,8 +22,11 @@
 # autoinstall.py #
 ##################
 
+PROGRAM_DESCRIPTION = 'Run local BOOTP and HTTP servers to host netboot and/or set package downloads for automated installation on OpenBSD target system using autoinstall(8)'
+
 
 # INTERNAL LIBRARIES
+from OortArgs import OortArgs # must come first
 from OortCommon import *
 from machdep import *
 from masterDisks import generateMasteringImageForHostname, prepareNetbootDirectories
@@ -44,22 +47,21 @@ import sys
 #
 # CONSTANTS
 #
+
 INDEX_FILENAME =        "index.html"
 BOOTP_LEASES_FILENAME = "bootp.leases"
 SPAWN_SCRIPT_FILENAME = "runnetboot.sh"
 
-DNSMASQ_PATH = os.path.join("machdep", "Darwin", "dnsmasq", "dnsmasq")
+DNSMASQ_RELATIVE_PATH = os.path.join("machdep", "Darwin", "dnsmasq", "dnsmasq")
 
-NETBOOT_INTERFACE =          "netboot-interface"
-NETBOOT_HOST_IP =            "netboot-host-ip"
-NETBOOT_TARGET_IP =          "netboot-target-ip"
-NETBOOT_TARGET_MAC =         "netboot-target-mac"
 NETBOOT_FSROOT =             "netboot-filesystem-root"
 NETBOOT_RUNTIME =            "netboot-runtime-dir"
 NETBOOT_LEASES_FILE =        "netboot-bootp-leases"
+NETBOOT_APACHE_CONFIG_FILE = "netboot-httpd-config"
 NETBOOT_APACHE_PID_FILE =    "netboot-httpd-pid"
 NETBOOT_APACHE_ERROR_FILE =  "netboot-httpd-errors"
 NETBOOT_APACHE_ACCESS_FILE = "netboot-httpd-log"
+NETBOOT_DNSMASQ_EXEC_PATH =  "netboot-dnsmasq-executable"
 
 
 #
@@ -80,18 +82,21 @@ class OpenBsdAutoInstaller:
     def getNetbootSettings(self):
         s = dict()
 
-        s[NETBOOT_INTERFACE] = configValue(NETBOOT_INTERFACE)
-        assert s[NETBOOT_INTERFACE] is not None, "Configuration file is missing host network interface name for netboot"
-        assert any(s[NETBOOT_INTERFACE] in iface for iface in socket.if_nameindex()), "Network interface '%s' is not attached to the system" % s[NETBOOT_INTERFACE]  # make sure the specified network interface is found on the system
+        configFilePath = configValue(CONFIG_KEY_CONFIGPATH)
+        assert configFilePath is not None, "Configuration file path is missing from config"
+        
+        s[CONFIG_KEY_NETBOOT_INTERFACE] = configValue(CONFIG_KEY_NETBOOT_INTERFACE)
+        assert s[CONFIG_KEY_NETBOOT_INTERFACE] is not None, "Configuration file %s is missing host network interface name for netboot (key: '%s')" % (configFilePath, CONFIG_KEY_NETBOOT_INTERFACE)
+        assert any(s[CONFIG_KEY_NETBOOT_INTERFACE] in iface for iface in socket.if_nameindex()), "Network interface '%s' is not attached to the system. You may need to update your configuration file if the netboot interface has changed. (key: '%s')" % (s[CONFIG_KEY_NETBOOT_INTERFACE], CONFIG_KEY_NETBOOT_INTERFACE)  # make sure the specified network interface is found on the system
 
-        s[NETBOOT_HOST_IP] = configValue(NETBOOT_HOST_IP)
-        assert s[NETBOOT_HOST_IP] is not None and isIPv4(s[NETBOOT_HOST_IP]), "Configuration file has missing or invalid netboot host IP"
+        s[CONFIG_KEY_NETBOOT_HOST_IP] = configValue(CONFIG_KEY_NETBOOT_HOST_IP)
+        assert s[CONFIG_KEY_NETBOOT_HOST_IP] is not None and isIPv4(s[CONFIG_KEY_NETBOOT_HOST_IP]), "Configuration file %s has missing or invalid netboot host IP (key: '%s')" % (configFilePath, CONFIG_KEY_NETBOOT_HOST_IP)
 
-        s[NETBOOT_TARGET_IP] = configValue(NETBOOT_TARGET_IP)
-        assert s[NETBOOT_TARGET_IP] is not None and isIPv4(s[NETBOOT_TARGET_IP]), "Configuration file has missing or invalid netboot target IP"
+        s[CONFIG_KEY_NETBOOT_TARGET_IP] = configValue(CONFIG_KEY_NETBOOT_TARGET_IP)
+        assert s[CONFIG_KEY_NETBOOT_TARGET_IP] is not None and isIPv4(s[CONFIG_KEY_NETBOOT_TARGET_IP]), "Configuration file %s has missing or invalid netboot target IP (key: '%s')" % (configFilePath, CONFIG_KEY_NETBOOT_TARGET_IP)
 
-        s[NETBOOT_TARGET_MAC] = self.hostdef[HOSTMAP_FIELD_MACADDR]
-        assert s[NETBOOT_TARGET_MAC] is not None and isMAC(s[NETBOOT_TARGET_MAC]), "Hostmap has missing or invalid netboot target MAC"
+        s[CONFIG_KEY_NETBOOT_TARGET_MAC] = self.hostdef[HOSTMAP_FIELD_MACADDR]
+        assert s[CONFIG_KEY_NETBOOT_TARGET_MAC] is not None and isMAC(s[CONFIG_KEY_NETBOOT_TARGET_MAC]), "Hostmap has missing or invalid netboot target MAC ('%s' = %r)" % (HOSTMAP_FIELD_MACADDR, s[CONFIG_KEY_NETBOOT_TARGET_MAC])
         
         # NETBOOT_FSROOT and NETBOOT_RUNTIME will be added later by .populateNetbootDirectory()
 
@@ -107,14 +112,16 @@ class OpenBsdAutoInstaller:
         setsManifest = diskManifests['sets_disk']
         
         # Create the netboot directory structure
-        print("Preparing netboot directory tree in '%s'..." % BUILD_ROOT_PATH)
-        netbootDirectories = prepareNetbootDirectories(hostdef, BUILD_ROOT_PATH)
+        print("Preparing netboot directory tree in '%s'..." % configValue(CONFIG_KEY_BUILD_ROOT_PATH))
+        netbootDirectories = prepareNetbootDirectories(hostdef, configValue(CONFIG_KEY_BUILD_ROOT_PATH))
         netbootHostDirectory = os.path.abspath(netbootDirectories['netboot_host'])
         
         # Update our settings
         self.s[NETBOOT_FSROOT] = os.path.abspath(netbootDirectories['netboot_root'])
         self.s[NETBOOT_RUNTIME] = os.path.abspath(netbootDirectories['netboot_runtime'])
+        self.s[NETBOOT_DNSMASQ_EXEC_PATH] = os.path.join(configValue(CONFIG_KEY_EXECUTABLES_PATH), DNSMASQ_RELATIVE_PATH)
         self.s[NETBOOT_LEASES_FILE] = os.path.join(self.s[NETBOOT_RUNTIME], BOOTP_LEASES_FILENAME)
+        self.s[NETBOOT_APACHE_CONFIG_FILE] = os.path.abspath(os.path.join(configValue(CONFIG_KEY_EXECUTABLES_PATH), MACHDEP_DIRNAME, machdep_platform(), NETBOOT_APACHE_CONFIG_FILENAME))
         self.s[NETBOOT_APACHE_PID_FILE] = os.path.join(self.s[NETBOOT_RUNTIME], NETBOOT_APACHE_PID_FILENAME)
         self.s[NETBOOT_APACHE_ERROR_FILE] = os.path.join(self.s[NETBOOT_RUNTIME], NETBOOT_APACHE_ERROR_LOG_FILENAME)
         self.s[NETBOOT_APACHE_ACCESS_FILE] = os.path.join(self.s[NETBOOT_RUNTIME], NETBOOT_APACHE_ACCESS_LOG_FILENAME)
@@ -145,35 +152,36 @@ class OpenBsdAutoInstaller:
 
 
     def spawnServerSubtasks(self):
-        assert(os.path.isfile(DNSMASQ_PATH))
+        dnsmasqPath = self.s[NETBOOT_DNSMASQ_EXEC_PATH]
+        assert os.path.isfile(dnsmasqPath), "Missing Dnsmasq executable expected at %s" % dnsmasqPath
 
         hostname = self.hostdef[HOSTMAP_FIELD_HOSTNAME]
 
         # Build command invocations for BOOTP and HTTP servers
         bootpServerCmd = shlex.join([
-            "./" + os.path.basename(DNSMASQ_PATH),
+            "./" + os.path.basename(dnsmasqPath),
             "--keep-in-foreground",
-            "--interface=" + self.s[NETBOOT_INTERFACE],
+            "--interface=" + self.s[CONFIG_KEY_NETBOOT_INTERFACE],
             "--no-hosts",
             "--no-resolv",
             "--enable-tftp",
             "--tftp-root=" + self.s[NETBOOT_FSROOT],
             "--dhcp-leasefile=" + self.s[NETBOOT_LEASES_FILE],
-            "--dhcp-range=" + self.s[NETBOOT_TARGET_IP] + ',' + self.s[NETBOOT_TARGET_IP],
-            "--dhcp-host=" + self.s[NETBOOT_TARGET_MAC] + ',' + self.s[NETBOOT_TARGET_IP] + ',' + hostname + ',infinite',
-            "--dhcp-boot=" + hostname + "/auto_install," + self.s[NETBOOT_HOST_IP],
+            "--dhcp-range=" + self.s[CONFIG_KEY_NETBOOT_TARGET_IP] + ',' + self.s[CONFIG_KEY_NETBOOT_TARGET_IP],
+            "--dhcp-host=" + self.s[CONFIG_KEY_NETBOOT_TARGET_MAC] + ',' + self.s[CONFIG_KEY_NETBOOT_TARGET_IP] + ',' + hostname + ',infinite',
+            "--dhcp-boot=" + hostname + "/auto_install," + self.s[CONFIG_KEY_NETBOOT_HOST_IP],
             "--user=" + os.getlogin()
         ])
         httpServerCmd = shlex.join([
             "httpd",
             "-X", # keep in foreground
             "-d", self.s[NETBOOT_RUNTIME],
-            "-f", os.path.abspath(os.path.join(NETBOOT_CONFIG_DIRNAME, NETBOOT_APACHE_CONFIG_FILENAME)),
+            "-f", self.s[NETBOOT_APACHE_CONFIG_FILE],
             "-E", self.s[NETBOOT_APACHE_ERROR_FILE],
             "-c", "PidFile " + self.s[NETBOOT_APACHE_PID_FILE],
             "-c", "ErrorLog " + self.s[NETBOOT_APACHE_ERROR_FILE],
             "-c", "CustomLog " + self.s[NETBOOT_APACHE_ACCESS_FILE] + " stdlogformat",
-            "-c", "ServerName " + self.s[NETBOOT_HOST_IP],
+            "-c", "ServerName " + self.s[CONFIG_KEY_NETBOOT_HOST_IP],
             "-c", "User " + os.getlogin(),
             "-c", "DocumentRoot " + self.s[NETBOOT_FSROOT],
         ])
@@ -217,8 +225,8 @@ wait
         os.chmod(spawnScriptPath, userRXMode)
         
         # Copy the dnsmasq binary to the local netboot runtime directory so that we can chroot() there
-        src = DNSMASQ_PATH
-        dst = os.path.join(self.s[NETBOOT_RUNTIME], os.path.basename(DNSMASQ_PATH))
+        src = dnsmasqPath
+        dst = os.path.join(self.s[NETBOOT_RUNTIME], os.path.basename(dnsmasqPath))
         copyFileIfNeeded(src, dst)
         os.chmod(dst, userRXMode)
         
@@ -248,12 +256,10 @@ wait
 
 
 def main(argv):
-    assertNotRootUser()
-
-    parser = argparse.ArgumentParser(description='Run local BOOTP and HTTP servers to host netboot and/or set package downloads for automated installation on OpenBSD target system using autoinstall(8)')
-    parser.add_argument("hostname", help="Name of host to be provisioned")
-    parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], help="increase output verbosity")
-    args = parser.parse_args()
+    global PROGRAM_DESCRIPTION
+    argParser = OortArgs(PROGRAM_DESCRIPTION)
+    argParser.addArg("hostname", help="Name of host to be provisioned")
+    args = OortInit(argParser)
 
     hostname = args.hostname
 
