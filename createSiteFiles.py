@@ -71,9 +71,11 @@ AUTOGEN_FILENAME_SITE_INSTALL_APPEND =  "_AUTOGEN_install.site"
 AUTOGEN_FILENAME_AUTOINSTALL =          "_AUTOGEN_" + AUTOINSTALL_FILENAME
 AUTOGEN_FILEPATTERN_AUTODISKLABEL =     "_AUTOGEN_" + AUTODISKLABEL_FILENAME_PTN
 
+AUTOINSTALL_VAR_HOSTNAME =        "__OORT_TEMPLATE_HOSTNAME__"
+AUTOINSTALL_VAR_NETBOOT_HOST_IP = "__OORT_TEMPLATE_NETBOOT_HOST_IP__"
+AUTOINSTALL_VAR_OPENBSD_VERSION = "__OORT_TEMPLATE_OPENBSD_SHORTVERSION__"
+
 TMP_DIR_PREFIX = "network.ohsnap.oort.sitegen_"
-
-
 
 
 #
@@ -180,7 +182,14 @@ def processAutogenFile(sourcePath, destPath, domain, hostdef):
     elif sourceName == AUTOGEN_FILENAME_AUTOINSTALL:
         # The autoinstall file doesn't actually go into the site package, so we need to manually move it up into the host output parent directory
         destPath = os.path.join(autoinstallConfigurationRootPathForHost(hostdef), AUTOINSTALL_FILENAME)
-        shutil.copyfile(sourcePath, destPath)
+        # Copy to the destination, performing template variable substitution along the way
+        varSubs = { AUTOINSTALL_VAR_HOSTNAME:        hostdef[HOSTMAP_FIELD_HOSTNAME],
+                    AUTOINSTALL_VAR_NETBOOT_HOST_IP: configValue(CONFIG_KEY_NETBOOT_HOST_IP),
+                    AUTOINSTALL_VAR_OPENBSD_VERSION: openBSDVersion(hostdef) }
+        with open(sourcePath, 'r') as srcAutoinstallConf:
+            with open(destPath, 'w') as dstAutoinstallConf:
+                dstAutoinstallConf.write(replaceVariablesInString(srcAutoinstallConf.read(), varSubs))
+        
 
     # autodisklabel file(s) for autoinstallation
     elif autodisklabelNameMatch := re.match(AUTOGEN_FILEPATTERN_AUTODISKLABEL, sourceName):
