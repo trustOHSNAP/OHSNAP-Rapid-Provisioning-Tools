@@ -22,8 +22,11 @@
 # createSiteFiles.py #
 ######################
 
+PROGRAM_DESCRIPTION = 'Generate site.tgz custom package sets on a per-host basis'
+
 
 # INTERNAL LIBRARIES
+from OortArgs import OortArgs # must come first
 import OortCommon
 from OortCommon import *
 
@@ -84,18 +87,15 @@ gInstallSiteScriptAppend = ''
 #
 # METHODS
 #    
-def usage():
-    print("Usage: %s [hostname]" % sys.argv[0])
-    sys.exit(errno.EINVAL)
-
-
 def prepareOutputDirectories(hostname):
-    finalOutputDirectoryPath = os.path.join(BUILD_ROOT_PATH, BUILD_DIR, hostname, BUILD_DIR_DESTROOT_NAME)
+    buildRootPath = configValue(CONFIG_KEY_BUILD_ROOT_PATH)
+
+    finalOutputDirectoryPath = os.path.join(buildRootPath, BUILD_DIR, hostname, BUILD_DIR_DESTROOT_NAME)
     makeDirIfNeeded(finalOutputDirectoryPath)
     
     intermediateBuildDirectoryPath = tempfile.mkdtemp(prefix=TMP_DIR_PREFIX)
 
-    autoinstallOutputDirectoryPath = os.path.join(BUILD_ROOT_PATH, BUILD_DIR, hostname, AUTOINSTALL_DIR)
+    autoinstallOutputDirectoryPath = os.path.join(buildRootPath, BUILD_DIR, hostname, AUTOINSTALL_DIR)
     makeDirIfNeeded(autoinstallOutputDirectoryPath)
 
     return { 'final': finalOutputDirectoryPath, 'intermediate': intermediateBuildDirectoryPath, 'autoinstall': autoinstallOutputDirectoryPath }
@@ -124,18 +124,19 @@ def packagesPathForDomain(domain, hostdef):
 
 
 def autoinstallConfigurationRootPathForHost(hostdef):
-    return os.path.join(BUILD_ROOT_PATH, BUILD_DIR, hostdef[HOSTMAP_FIELD_HOSTNAME], AUTOINSTALL_DIR)
+    return os.path.join(configValue(CONFIG_KEY_BUILD_ROOT_PATH), BUILD_DIR, hostdef[HOSTMAP_FIELD_HOSTNAME], AUTOINSTALL_DIR)
 
 
 def checkTemplateDirectoryStructure(hostdef):
     print("Verifying template directory structure...")
-    
+    debug("Current directory: %s" % os.getcwd())
+        
     for domain in DOMAINS:
         if not os.path.isdir(domain):
-            error("Missing domain directory '%s'" % domain)
+            error("Configuration directory is missing domain directory '%s'" % domain)
         manifestPath = manifestPathForDomain(domain, hostdef)
         if not os.path.isfile(manifestPath):
-            error("Missing %s manifest '%s'" % (domain, manifestPath))
+            error("Configuration directory is missing %s manifest '%s'" % (domain, manifestPath))
 
 
 def performSubstitutionsOnPath(path):
@@ -357,18 +358,16 @@ def generateSitePackage(hostname):
 
 
 def main(argv):
-    assertNotRootUser()
-    
-    hostnames = None
+    global PROGRAM_DESCRIPTION
+    argParser = OortArgs(PROGRAM_DESCRIPTION)
+    argParser.addArg("hostnames", nargs='*', help="Name(s) of host(s) to be provisioned")
+    args = OortInit(argParser)
+
+    hostnames = args.hostnames
+
     completedCount = 0
     
-    # Check arg list
-    if len(sys.argv) > 2:
-        usage()
-    elif len(sys.argv) == 2:
-        hostnames = [ sys.argv[1] ]
-
-    if hostnames == None:
+    if hostnames == None or len(hostnames) == 0:
         hostnames = list()
         for hostdef in OortCommon.gHostMap:
             if not hostdef[HOSTMAP_FIELD_ROLE] == HOST_ROLE_VIRTUAL: # skip virtual entries
