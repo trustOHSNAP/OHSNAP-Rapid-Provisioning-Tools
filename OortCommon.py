@@ -445,6 +445,22 @@ def validateHostmap():
         assert(     len(mac) > 0 and not containsWhitespace(mac) and isMAC(mac))
 
 
+def getOperationalModeFromParsedArgs(args: dict):
+    if args.list_hosts is True:
+        return "list_hosts"
+    
+    return "default"
+
+
+def listHostsAndExit():
+    print("Available hosts:")
+    
+    for host in sorted(gHostMap, key=lambda x: x[HOSTMAP_FIELD_HOSTNAME]):
+        print("    %s" % host[HOSTMAP_FIELD_HOSTNAME])
+    
+    exit()
+
+
 def OortInit(argParser: OortArgs):
     assert not platform.system() == 'Windows', "OORT is unsafe to run on Windows"
 
@@ -469,4 +485,13 @@ def OortInit(argParser: OortArgs):
     gHostMap = loadCSV(HOSTMAP_FILENAME)
     validateHostmap()
     
-    return argParser.getArgs()
+    userOptions = argParser.getArgs()
+    
+    # Determine if we should run the tool as normal or perform another action instead
+    mode = getOperationalModeFromParsedArgs(userOptions)    
+    if mode == "default":
+        pass
+    elif mode == "list_hosts":
+        listHostsAndExit()
+    
+    return userOptions
