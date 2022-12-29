@@ -56,6 +56,10 @@ class OortArgParser:
         self.parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2], help="increase output verbosity")
         self.parser.add_argument("-c", "--config-dir", type=pathlib.Path, help="path to oort-config (configuration files) directory")
         self.parser.add_argument("-b", "--build-dir", type=pathlib.Path, help="path to oort-build (build products) directory")
+        
+        operationGroup = self.parser.add_mutually_exclusive_group()
+        operationGroup.add_argument("-d", "--default-operation", action='store_true', default=False, help="run this tool normally (this is the default)")
+        operationGroup.add_argument("-l", "--list-hosts", action='store_true', default=False, help="instead of running this tool, list all defined hostnames and exit")
 
 
     def getArgs(self):
