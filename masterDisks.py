@@ -195,13 +195,14 @@ def prepareNetbootDirectories(hostdef, buildRootPath):
 
 def lookupFilenameInSHA256DirectoryTable(hashFilePath, targetFilename):
     patternMatch = matchFilenamePatternInSHA256DirectoryTable(hashFilePath, targetFilename)
-    return patternMatch['hash']
+    return patternMatch['hash'] if patternMatch is not None else None
 
     
 def matchFilenamePatternInSHA256DirectoryTable(hashFilePath, targetFilenamePattern):
     debug("matching pattern %s in %s" % (targetFilenamePattern, hashFilePath))
     result = dict()  # keys: 'filename', 'hash'
     sha256 = None
+    matchedFilename = None
     with open(hashFilePath, "r") as hashFile:
         for line in hashFile:
             line = line.strip()
@@ -225,9 +226,12 @@ def matchFilenamePatternInSHA256DirectoryTable(hashFilePath, targetFilenamePatte
                         matchedFilename = filenameScan.group(1)
                         sha256 = base64.b64decode(lineSearch.group(2)).hex()
                         break
-    debug("lookup %s: %s = %s" % (hashFilePath, matchedFilename, sha256))
-    result['hash'] = sha256
-    result['filename'] = matchedFilename
+    debug("lookup %s: %s -> %s = %s" % (hashFilePath, targetFilenamePattern, matchedFilename, sha256))
+    if matchedFilename is not None and sha256 is not None:
+        result['hash'] = sha256
+        result['filename'] = matchedFilename
+    else:
+        result = None
     return result
 
 
@@ -474,7 +478,7 @@ def downloadImagesForHost(hostdef):
     installImageUrl = urljoin(archSetsUrl, installImageName)
     downloadResumableUrlIfNeeded(installImageUrl, os.path.join(outputDirs['system'], installImageName), 'install_system')
 
-    # Download bootloader package(s), if any
+    # Any bootloader package(s) to download?
     bootloaderPackagesInfo = bootloaderPackagesInfoForHost(hostdef)
     if len(bootloaderPackagesInfo):
         pkgBaseUrl = urljoin(setsUrl, OPENBSD_PACKAGES_DIRNAME + '/')
@@ -497,7 +501,9 @@ def downloadImagesForHost(hostdef):
 
             # Find exact filename by matching pattern to hash file entries
             hashMatchResult = matchFilenamePatternInSHA256DirectoryTable(hashDownloadPath, pkgUrlPattern)
-            assert 'filename' in hashMatchResult, "Failed to match bootloader package file pattern '%s'" % pkgUrlPattern
+            if hashMatchResult is None:
+                error("Could not find bootloader package file matching pattern '%s' in SHA256 file at URL: %s -- perhaps the file was moved or renamed, or the mirror is in the middle of being updated?" % (pkgUrlPattern, hashUrl))
+            assert 'filename' in hashMatchResult
             pkgFilename = hashMatchResult['filename']
             print("Downloading '%s'..." % pkgFilename)
             pkgUrl = urljoin(archPkgsUrl, pkgFilename)
