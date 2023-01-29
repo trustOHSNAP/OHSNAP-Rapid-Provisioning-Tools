@@ -112,7 +112,6 @@ class OpenBsdAutoInstaller:
         setsManifest = diskManifests['sets_disk']
         
         # Create the netboot directory structure
-        netbootDirectories = prepareNetbootDirectories(hostdef, BUILD_ROOT_PATH)
         netbootDirectories = prepareNetbootDirectories(hostdef, configValue(CONFIG_KEY_BUILD_ROOT_PATH))
         netbootHostDirectory = os.path.abspath(netbootDirectories['netboot_host'])
         
