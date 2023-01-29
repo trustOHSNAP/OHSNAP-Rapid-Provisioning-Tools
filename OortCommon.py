@@ -18,6 +18,32 @@
 # PERFORMANCE OF THIS SOFTWARE.
 
 
+# Domain name validation code used in isDomainName() is derived from python-validators (https://github.com/python-validators/validators):
+#
+# python-validators License:
+#
+# The MIT License (MIT)
+# 
+# Copyright (c) 2013-2014 Konsta Vesterinen
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 #################
 # OortCommon.py #
 #################
@@ -108,6 +134,10 @@ BOARDMAP_FIELD_IMAGE_INFIX = "INSTALL_IMAGE_NAME_INFIX"
 BOARDMAP_FIELD_FLASH_OPTIONS = "flashOptions" # not stored in BOARDMAP.csv; see _FLASHOPTIONS.json
 
 
+#### Host options file
+HOSTOPTIONS_KEY_DOMAIN_NAME = "domain-name"
+
+
 FLASHOPTIONS_FILENAME =      "_FLASHOPTIONS.json"
 HOSTOPTIONS_FILENAME =       "_OPTIONS.json"
 
@@ -185,6 +215,16 @@ def isIPv4(ip: str) -> bool:
 
 def isMAC(mac: str) -> bool:
     return re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac.lower())
+
+
+def isDomainName(domain: str) -> bool:
+    pattern = re.compile(
+        r'^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|'
+        r'([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|'
+        r'([a-zA-Z0-9][-_.a-zA-Z0-9]{0,61}[a-zA-Z0-9]))\.'
+        r'([a-zA-Z]{2,13}|[a-zA-Z0-9-]{2,30}.[a-zA-Z]{2,3})$'
+    )
+    return pattern.match(domain)
 
 
 def loadCSV(relpath):

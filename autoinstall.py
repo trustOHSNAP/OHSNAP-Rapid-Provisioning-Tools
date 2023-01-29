@@ -63,6 +63,8 @@ NETBOOT_APACHE_ERROR_FILE =  "netboot-httpd-errors"
 NETBOOT_APACHE_ACCESS_FILE = "netboot-httpd-log"
 NETBOOT_DNSMASQ_EXEC_PATH =  "netboot-dnsmasq-executable"
 
+DEFAULT_DOMAIN_NAME =        "unspecified.domain"
+
 
 #
 # CLASSES
@@ -97,6 +99,9 @@ class OpenBsdAutoInstaller:
 
         s[CONFIG_KEY_NETBOOT_TARGET_MAC] = self.hostdef[HOSTMAP_FIELD_MACADDR]
         assert s[CONFIG_KEY_NETBOOT_TARGET_MAC] is not None and isMAC(s[CONFIG_KEY_NETBOOT_TARGET_MAC]), "Hostmap has missing or invalid netboot target MAC ('%s' = %r)" % (HOSTMAP_FIELD_MACADDR, s[CONFIG_KEY_NETBOOT_TARGET_MAC])
+        
+        s[HOSTOPTIONS_KEY_DOMAIN_NAME] = hostOptionsValue(self.hostdef[HOSTMAP_FIELD_HOSTNAME], HOSTOPTIONS_KEY_DOMAIN_NAME, DEFAULT_DOMAIN_NAME)
+        assert s[HOSTOPTIONS_KEY_DOMAIN_NAME] is not None and isDomainName(s[HOSTOPTIONS_KEY_DOMAIN_NAME]), "Host %s domain name is malformed ('%s' = '%s')" % (self.hostdef[HOSTMAP_FIELD_HOSTNAME], HOSTOPTIONS_KEY_DOMAIN_NAME, s[HOSTOPTIONS_KEY_DOMAIN_NAME])
         
         # NETBOOT_FSROOT and NETBOOT_RUNTIME will be added later by .populateNetbootDirectory()
 
@@ -169,6 +174,7 @@ class OpenBsdAutoInstaller:
             "--dhcp-range=" + self.s[CONFIG_KEY_NETBOOT_TARGET_IP] + ',' + self.s[CONFIG_KEY_NETBOOT_TARGET_IP],
             "--dhcp-host=" + self.s[CONFIG_KEY_NETBOOT_TARGET_MAC] + ',' + self.s[CONFIG_KEY_NETBOOT_TARGET_IP] + ',' + hostname + ',infinite',
             "--dhcp-boot=" + hostname + "/auto_install," + self.s[CONFIG_KEY_NETBOOT_HOST_IP],
+            "--dhcp-option=option:domain-name," + self.s[HOSTOPTIONS_KEY_DOMAIN_NAME],
             "--user=" + os.getlogin()
         ])
         httpServerCmd = shlex.join([
