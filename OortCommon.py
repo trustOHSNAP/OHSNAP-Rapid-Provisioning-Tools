@@ -136,6 +136,7 @@ BOARDMAP_FIELD_FLASH_OPTIONS = "flashOptions" # not stored in BOARDMAP.csv; see 
 
 #### Host options file
 HOSTOPTIONS_KEY_DOMAIN_NAME = "domain-name"
+HOSTOPTIONS_KEY_INSTALLURL  = "etc-install-url"
 
 
 FLASHOPTIONS_FILENAME =      "_FLASHOPTIONS.json"

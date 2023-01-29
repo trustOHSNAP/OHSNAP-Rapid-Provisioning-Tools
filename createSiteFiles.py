@@ -63,6 +63,8 @@ INSTALL_SCRIPT_ABSPATH =     "/install.site"
 FIRSTBOOT_APPEND_ABSPATH =   "/etc/rc.firsttime"
 ETCHOSTS_ABSPATH =           "/etc/hosts"
 ETCHOSTS_APPEND_ABSPATH =    "/root/post_install_hosts_append"
+ETCINSTALLURL_ABSPATH =      "/etc/installurl"
+ETCINSTALLURL_DEFAULT_URL =  "https://cdn.openbsd.org/pub/OpenBSD"
 AUTOINSTALL_FILENAME =       "install.conf"
 AUTODISKLABEL_FILENAME_PTN = "(disklabel.[\w]+[0-9]+)"
 
@@ -249,7 +251,7 @@ def generateHostConfigurationForDomain(domain, hostdef, outputBaseDir):
 
 # Tasks:
 # - append /etc/hosts
-def generateHostInstallSiteFile(destRootPath):
+def generateHostInstallSiteFile(hostname, destRootPath):
     print("Generating host install.site file...")
     debug("destRootPath = %s" % destRootPath)
     #
@@ -270,7 +272,10 @@ def generateHostInstallSiteFile(destRootPath):
     # Create /install.site script
     print("Generating '%s'..." % INSTALL_SCRIPT_ABSPATH)
     varSubs = { "$ETCHOSTS_APPEND_ABSPATH": ETCHOSTS_APPEND_ABSPATH,
-                "$ETCHOSTS_ABSPATH":        ETCHOSTS_ABSPATH}
+                "$ETCHOSTS_ABSPATH":        ETCHOSTS_ABSPATH,
+                "$ETCINSTALLURL_ABSPATH":   ETCINSTALLURL_ABSPATH,
+                "$ETCINSTALLURL":           hostOptionsValue(hostname, HOSTOPTIONS_KEY_INSTALLURL, ETCINSTALLURL_DEFAULT_URL)
+              }
     installSiteScript = replaceVariablesInString(
 '''#!/bin/sh
 
@@ -279,6 +284,10 @@ if [ -f $ETCHOSTS_APPEND_ABSPATH ]
 then
     cat $ETCHOSTS_APPEND_ABSPATH >> $ETCHOSTS_ABSPATH
 fi
+
+# restore /etc/installurl, which would have been overwritten during
+# autoinstall to point to the temporary autoinstall server
+echo "$ETCINSTALLURL" > $ETCINSTALLURL_ABSPATH
 
 ''', varSubs)
     global gInstallSiteScriptAppend
@@ -316,7 +325,7 @@ def generateSitePackage(hostname):
         print("Generating '%s' overrides..." % domain)
         generateHostConfigurationForDomain(domain, hostdef, outputDirs['intermediate'])
         
-    generateHostInstallSiteFile(outputDirs['intermediate'])
+    generateHostInstallSiteFile(hostname, outputDirs['intermediate'])
 
     # move intermediate build products into final location if we've made it to this point
     print("Moving merged root into %s..." % os.path.dirname(outputDirs['final']))
