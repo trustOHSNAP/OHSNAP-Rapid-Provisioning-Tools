@@ -103,20 +103,6 @@ def prepareOutputDirectories(hostname):
     return { 'final': finalOutputDirectoryPath, 'intermediate': intermediateBuildDirectoryPath, 'autoinstall': autoinstallOutputDirectoryPath }
     
 
-def rootRelativePathForDomainResource(domain, hostdef, domainRelativePath):
-    # strip a leading / so that os.path.join() doesn't incorrectly discard preceding path components
-    if domainRelativePath.startswith('/'):
-        domainRelativePath = domainRelativePath[1:]
-    domainPathMapping = {
-        DOMAIN_COMMON : os.path.join(DOMAIN_COMMON, domainRelativePath),
-        DOMAIN_REALM  : os.path.join(DOMAIN_REALM,  hostdef[HOSTMAP_FIELD_REALM], domainRelativePath),
-        DOMAIN_ROLE   : os.path.join(DOMAIN_ROLE,   hostdef[HOSTMAP_FIELD_ROLE], domainRelativePath),
-        DOMAIN_BOARD  : os.path.join(DOMAIN_BOARD,  hostdef[HOSTMAP_FIELD_BOARD], domainRelativePath),
-        DOMAIN_HOST   : os.path.join(DOMAIN_HOST,   hostdef[HOSTMAP_FIELD_HOSTNAME], domainRelativePath),
-    }
-    return domainPathMapping.get(domain, None)
-
-
 def manifestPathForDomain(domain, hostdef):
     return rootRelativePathForDomainResource(domain, hostdef, MANIFEST_FILENAME)
 
