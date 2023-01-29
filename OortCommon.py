@@ -456,7 +456,8 @@ def listHostsAndExit():
     print("Available hosts:")
     
     for host in sorted(gHostMap, key=lambda x: x[HOSTMAP_FIELD_HOSTNAME]):
-        print("    %s" % host[HOSTMAP_FIELD_HOSTNAME])
+        if host[HOSTMAP_FIELD_ROLE] != HOST_ROLE_VIRTUAL:
+            print("    %s" % host[HOSTMAP_FIELD_HOSTNAME])
     
     exit()
 
