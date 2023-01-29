@@ -48,6 +48,7 @@ import sys
 #
 CSV_COMMENT_START =          "#"
 JSON_FILE_EXTENSION =        "json"
+JSON_COMMENT_KEY =           "__COMMENT_FILENAME__"
 
 ### Configuration
 CONFIG_FILE_BASE_NAME =      "CONFIG"
@@ -86,6 +87,7 @@ HOSTMAP_FIELD_OSFLAVOR =     "OSFLAVOR"
 HOSTMAP_FIELD_BOARD =        "BOARD"
 HOSTMAP_FIELD_ADMIN_IP =     "ADMIN_IP"
 HOSTMAP_FIELD_MACADDR =      "MAC"
+HOSTMAP_FIELD_OPTIONS_DICT = "options"
 
 HOST_ROLE_VIRTUAL =          "VIRTUAL"
 
@@ -105,7 +107,9 @@ BOARDMAP_FIELD_BOOT_DEVICES = "INSTALL_BOOT_DEVICES"
 BOARDMAP_FIELD_IMAGE_INFIX = "INSTALL_IMAGE_NAME_INFIX"
 BOARDMAP_FIELD_FLASH_OPTIONS = "flashOptions" # not stored in BOARDMAP.csv; see _FLASHOPTIONS.json
 
+
 FLASHOPTIONS_FILENAME =      "_FLASHOPTIONS.json"
+HOSTOPTIONS_FILENAME =       "_OPTIONS.json"
 
 OPENBSD_VERSION_FILENAME =   "RELEASE.txt"
 
@@ -218,6 +222,7 @@ def loadJSON(path):
     jsonDict = None
     with open(path, "r") as jsonFile:
         jsonDict = json.load(jsonFile)
+    jsonDict.pop(JSON_COMMENT_KEY, None) # remove comment keys, if any
     return jsonDict 
 
 
@@ -325,6 +330,20 @@ def installImageFlashOptionsForBoard(boardname):
     return installImageFlashOptions
 
 
+def rootRelativePathForDomainResource(domain, hostdef, domainRelativePath):
+    # strip a leading / so that os.path.join() doesn't incorrectly discard preceding path components
+    if domainRelativePath.startswith('/'):
+        domainRelativePath = domainRelativePath[1:]
+    domainPathMapping = {
+        DOMAIN_COMMON : os.path.join(DOMAIN_COMMON, domainRelativePath),
+        DOMAIN_REALM  : os.path.join(DOMAIN_REALM,  hostdef[HOSTMAP_FIELD_REALM], domainRelativePath),
+        DOMAIN_ROLE   : os.path.join(DOMAIN_ROLE,   hostdef[HOSTMAP_FIELD_ROLE], domainRelativePath),
+        DOMAIN_BOARD  : os.path.join(DOMAIN_BOARD,  hostdef[HOSTMAP_FIELD_BOARD], domainRelativePath),
+        DOMAIN_HOST   : os.path.join(DOMAIN_HOST,   hostdef[HOSTMAP_FIELD_HOSTNAME], domainRelativePath),
+    }
+    return domainPathMapping.get(domain, None)
+
+
 def printHostConfigurationForDefinition(hostdef):
     board = hostdef[HOSTMAP_FIELD_BOARD]
     print("\n========= HOST CONFIGURATION =========")
@@ -334,6 +353,7 @@ def printHostConfigurationForDefinition(hostdef):
     print("|  OpenBSD Flavor:  %s (%s / %s)" % (hostdef[HOSTMAP_FIELD_OSFLAVOR], sysArchNameForBoard(board), pkgArchNameForBoard(board)))
     print("|      IP Address:  %s" % hostdef[HOSTMAP_FIELD_ADMIN_IP])
     print("|     MAC Address:  %s" % hostdef[HOSTMAP_FIELD_MACADDR])
+    print("|    Host Options:  %s" % hostdef[HOSTMAP_FIELD_OPTIONS_DICT])
     print("======================================\n")
 
 
@@ -445,6 +465,19 @@ def validateHostmap():
         assert(     len(mac) > 0 and not containsWhitespace(mac) and isMAC(mac))
 
 
+def loadHostOptions():
+    for host in gHostMap:
+        host[HOSTMAP_FIELD_OPTIONS_DICT] = dict()
+        for domain in DOMAINS:
+            hostOptionsFilepath = rootRelativePathForDomainResource(domain, host, HOSTOPTIONS_FILENAME)
+            if os.path.isfile(hostOptionsFilepath):
+                host[HOSTMAP_FIELD_OPTIONS_DICT].update(loadJSON(hostOptionsFilepath))
+
+
+def hostOptionsValue(hostname, key, defaultValue = None):
+    return next((host for host in gHostMap if host[HOSTMAP_FIELD_HOSTNAME] == hostname), dict()).get(HOSTMAP_FIELD_OPTIONS_DICT, dict()).get(key, defaultValue)
+
+
 def getOperationalModeFromParsedArgs(args: dict):
     if args.list_hosts is True:
         return "list_hosts"
@@ -485,6 +518,7 @@ def OortInit(argParser: OortArgs):
     global gHostMap
     gHostMap = loadCSV(HOSTMAP_FILENAME)
     validateHostmap()
+    loadHostOptions()
     
     userOptions = argParser.getArgs()
     
