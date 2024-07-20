@@ -269,33 +269,34 @@ def bootloaderPackagesInfoForHost(hostdef):
         setsUrl = urlForHostInstallSets(hostdef)
     
         boardName = hostdef[HOSTMAP_FIELD_BOARD]
-        pkgArchName = pkgArchNameForBoard(boardName)
+        if bootloaderBoardNameForBoard(boardName):
+            pkgArchName = pkgArchNameForBoard(boardName)
 
-        # arm64, arm32, and riscv64 all use u-boot
-        # from arm64's packages repo, for some reason.
-        if pkgArchName == "aarch64" or pkgArchName == "arm" or pkgArchName == "riscv64":
-            archSetsUrl = urljoin(setsUrl, 'aarch64' + '/')
-            ubootPackageUrlPattern = r'u-boot-' + pkgArchName + r'-[-\w.]+\.tgz'
-            bootloaderPackagesInfo['u-boot'] = {
-                'pattern': ubootPackageUrlPattern,
-                'archOverride': 'aarch64',
-                'tarContentsBoardParentPath': 'share/u-boot/',
-            }
+            # arm64, arm32, and riscv64 all use u-boot
+            # from arm64's packages repo, for some reason.
+            if pkgArchName == "aarch64" or pkgArchName == "arm" or pkgArchName == "riscv64":
+                archSetsUrl = urljoin(setsUrl, 'aarch64' + '/')
+                ubootPackageUrlPattern = r'u-boot-' + pkgArchName + r'-[-\w.]+\.tgz'
+                bootloaderPackagesInfo['u-boot'] = {
+                    'pattern': ubootPackageUrlPattern,
+                    'archOverride': 'aarch64',
+                    'tarContentsBoardParentPath': 'share/u-boot/',
+                }
 
-        # In general, each board may specify different bootloader files
-        if  boardName == "rockpi4" or \
-            boardName == "rock64" or \
-            boardName == "rockpro64" or \
-            boardName == "pinebookpro":
-            bootloaderPackagesInfo['u-boot']['tarContentsExtractBoardChildPaths'] = [
-                'idbloader.img',
-                'u-boot.itb'
-            ]
-        elif boardName == "beagleboneblack":
-            bootloaderPackagesInfo['u-boot']['tarContentsExtractBoardChildPaths'] = [
-                'MLO',
-                'u-boot.img'
-            ]
+            # In general, each board may specify different bootloader files
+            if  boardName == "rockpi4" or \
+                boardName == "rock64" or \
+                boardName == "rockpro64" or \
+                boardName == "pinebookpro":
+                bootloaderPackagesInfo['u-boot']['tarContentsExtractBoardChildPaths'] = [
+                    'idbloader.img',
+                    'u-boot.itb'
+                ]
+            elif boardName == "beagleboneblack":
+                bootloaderPackagesInfo['u-boot']['tarContentsExtractBoardChildPaths'] = [
+                    'MLO',
+                    'u-boot.img'
+                ]
 
         gBootloaderPackageInfoCache[hostname] = bootloaderPackagesInfo
         
