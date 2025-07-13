@@ -63,6 +63,7 @@ MIRROR_ROOT_HTTP_URL=       'https://cdn.openbsd.org/pub/OpenBSD/'
 
 HASH_FILENAME =             "SHA256"
 HASH_SIGNED_FILENAME =      "SHA256.sig"
+BUILDINFO_FILENAME =        "BUILDINFO"
 INSTALL_IMAGE_BASENAME =    'miniroot'
 INSTALL_IMAGE_EXTENSION =   '.img'
 
@@ -466,12 +467,14 @@ def downloadImagesForHost(hostdef):
 
     print("Downloading install sets from %s..." % archSetsUrl)
     
-    # Always download the latest SHA256 file for the system install sets
+    # Always download the latest SHA256 and BUILDINFO files for the system install sets
     print("Getting system SHA256 hashes...")
     hashUrl = urljoin(archSetsUrl, HASH_FILENAME)
     downloadUrl(hashUrl, os.path.join(outputDirs['system'], HASH_FILENAME))
     hashSigUrl = urljoin(archSetsUrl, HASH_SIGNED_FILENAME)
     downloadUrl(hashSigUrl, os.path.join(outputDirs['system'], HASH_SIGNED_FILENAME))
+    buildInfoUrl = urljoin(archSetsUrl, BUILDINFO_FILENAME)
+    downloadUrl(buildInfoUrl, os.path.join(outputDirs['system'], BUILDINFO_FILENAME))
 
     # Download install image
     installImageName = INSTALL_IMAGE_BASENAME + installImageNameInfixForBoard(boardName) + openBSDVersionString + INSTALL_IMAGE_EXTENSION
@@ -613,7 +616,8 @@ def stageImagesForHost(hostdef, downloadDirPaths):
     #
     print("Copying sets...")
     hashFileNames = [ HASH_FILENAME, HASH_SIGNED_FILENAME ]
-    for setPackageFilename in downloadDirPaths['setPackageFilenames'] + hashFileNames:
+    additionalTopLevelFilenames = [ BUILDINFO_FILENAME ]
+    for setPackageFilename in downloadDirPaths['setPackageFilenames'] + hashFileNames + additionalTopLevelFilenames:
         global gMissingOptionalPackageNames
         if 'sets_package' in gMissingOptionalPackageNames and setPackageFilename in gMissingOptionalPackageNames['sets_package']:
             debug("Skipping missing optional 'sets_package' file '%s'" % setPackageFilename)
