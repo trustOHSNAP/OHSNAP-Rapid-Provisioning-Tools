@@ -67,6 +67,7 @@ import shutil
 import socket
 import string
 import sys
+import urllib.request
 
 
 #
@@ -267,31 +268,91 @@ def loadJSON(path):
     return jsonDict 
 
 
+def fetchOpenBSDVersion(flavor, architecture=None):
+    """
+    Fetch the current OpenBSD version from the official website.
+    For stable: fetches from build Makefile
+    For current: fetches from snapshots index.txt for the given architecture
+    Returns the version number with period stripped (e.g., "77" for version 7.7).
+    """
+    if flavor == OSFLAVOR_STABLE:
+        try:
+            debug("Fetching OpenBSD stable version from https://www.openbsd.org/build/Makefile")
+            with urllib.request.urlopen('https://www.openbsd.org/build/Makefile') as response:
+                makefile_content = response.read().decode('utf-8')
+
+            # Parse the STABLE_VERSION line
+            for line in makefile_content.split('\n'):
+                line = line.strip()
+                if line.startswith('STABLE_VERSION='):
+                    # Extract version number after the = sign
+                    version = line.split('=')[1].strip()
+                    # Remove tabs and any extra whitespace
+                    version = version.replace('\t', '').strip()
+                    # Remove the period to get format like "77" from "7.7"
+                    version_no_period = version.replace('.', '')
+                    debug("Found OpenBSD stable version: %s (formatted as %s)" % (version, version_no_period))
+                    return version_no_period
+
+            error("Could not find STABLE_VERSION in OpenBSD Makefile")
+        except Exception as e:
+            error("Failed to fetch OpenBSD stable version from website: %s" % str(e))
+
+    elif flavor == OSFLAVOR_CURRENT:
+        if architecture is None:
+            error("Architecture is required for current flavor")
+
+        try:
+            snapshot_url = f"https://ftp.usa.openbsd.org/pub/OpenBSD/snapshots/{architecture}/index.txt"
+            debug(f"Fetching OpenBSD current version from {snapshot_url}")
+            with urllib.request.urlopen(snapshot_url) as response:
+                index_content = response.read().decode('utf-8')
+
+            # Parse the index.txt to find version information from base*.tgz files
+            # Collect all version numbers in case there are multiple base files
+            found_versions = []
+            for line in index_content.split('\n'):
+                line = line.strip()
+                # Look for base files that contain version numbers like "base77.tgz"
+                if line.endswith('.tgz') and 'base' in line:
+                    # Extract version from filename like "base77.tgz"
+                    version_match = re.search(r'base(\d{2,3})\.tgz', line)
+                    if version_match:
+                        version_no_period = version_match.group(1)
+                        found_versions.append(int(version_no_period))
+                        debug(f"Found OpenBSD current version candidate: {version_no_period}")
+
+            if found_versions:
+                # Return the highest version number found
+                highest_version = str(max(found_versions))
+                debug(f"Selected highest OpenBSD current version: {highest_version}")
+                return highest_version
+
+            error(f"Could not find version information in {snapshot_url}")
+        except Exception as e:
+            error(f"Failed to fetch OpenBSD current version from snapshots: {str(e)}")
+
+    else:
+        error(f"Unknown OpenBSD flavor '{flavor}'")
+
+
 def openBSDVersion(hostdef):
     openBSDVersionForHost = None
     global gLatestOpenBsdStableVersion
-    if gLatestOpenBsdStableVersion == None:
-        if not os.path.isfile(OPENBSD_VERSION_FILENAME):
-            error("Missing OpenBSD release version file '%s'" % OPENBSD_VERSION_FILENAME)
-
-        pattern = re.compile("\d{2,3}")
-        try:
-            with open(OPENBSD_VERSION_FILENAME) as f:
-                releaseText = f.read()
-        except:
-            error("Can't read OpenBSD version file '%s': %s" % (OPENBSD_VERSION_FILENAME, sys.exc_info()))
-
-        if not len(releaseText) == 2 or pattern.fullmatch(releaseText) == None:
-            error("OpenBSD version file '%s' must be in NN format" % OPENBSD_VERSION_FILENAME)
-        gLatestOpenBsdStableVersion = releaseText
     
-    # 'Stable' OS flavor uses last released version number
-    # 'Current' OS flavor uses last released version number + 1
+    # Get the OS flavor and board architecture
     flavor = hostdef[HOSTMAP_FIELD_OSFLAVOR]
+    boardname = hostdef[HOSTMAP_FIELD_BOARD]
+    architecture = sysArchNameForBoard(boardname)
+    
     if flavor == OSFLAVOR_STABLE:
+        # For stable flavor, fetch the current stable version in real-time
+        if gLatestOpenBsdStableVersion == None:
+            gLatestOpenBsdStableVersion = fetchOpenBSDVersion(OSFLAVOR_STABLE)
         openBSDVersionForHost = gLatestOpenBsdStableVersion
     elif flavor == OSFLAVOR_CURRENT:
-        openBSDVersionForHost = str(int(gLatestOpenBsdStableVersion) + 1)
+        # For current flavor, fetch the current version from snapshots
+        openBSDVersionForHost = fetchOpenBSDVersion(OSFLAVOR_CURRENT, architecture)
     else:
         error("Unknown OpenBSD flavor '%s'" % flavor)
     
