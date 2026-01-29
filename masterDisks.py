@@ -3,7 +3,7 @@
 
 # ISC License
 # 
-# Copyright (c) 2022 OHSNAP
+# Copyright (c) 2022-2025 OHSNAP
 # 
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -119,7 +119,7 @@ def prepareDownloadDirectories(hostdef, buildRootPath):
     makeDirIfNeeded(dlRootDirPath)
 
     flavor = hostdef[HOSTMAP_FIELD_OSFLAVOR]
-    if flavor == OSFLAVOR_STABLE:
+    if flavor == OSFLAVOR_STABLE or isExplicitVersion(flavor):
         flavorDirName = openBSDVersion(hostdef)
     elif flavor == OSFLAVOR_CURRENT:
         flavorDirName = OPENBSD_CURRENT_DIRNAME
@@ -239,7 +239,7 @@ def matchFilenamePatternInSHA256DirectoryTable(hashFilePath, targetFilenamePatte
 def urlForHostInstallSets(hostdef):
     # Determine release number and URL for system install sets
     flavor = hostdef[HOSTMAP_FIELD_OSFLAVOR]
-    if flavor == OSFLAVOR_STABLE:
+    if flavor == OSFLAVOR_STABLE or isExplicitVersion(flavor):
         setsRemoteDirName = dottedVersion(openBSDVersion(hostdef))
     elif flavor == OSFLAVOR_CURRENT:
         setsRemoteDirName = OPENBSD_CURRENT_DIRNAME

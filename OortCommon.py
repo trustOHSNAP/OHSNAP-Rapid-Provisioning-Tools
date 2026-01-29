@@ -3,7 +3,7 @@
 
 # ISC License
 # 
-# Copyright (c) 2022 OHSNAP
+# Copyright (c) 2022-2025 OHSNAP
 # 
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -267,6 +267,11 @@ def loadJSON(path):
     return jsonDict 
 
 
+def isExplicitVersion(flavor):
+    """Check if OSFLAVOR is an explicit version number (e.g., '68' for 6.8)"""
+    return re.fullmatch(r'\d{2,3}', flavor) is not None
+
+
 def openBSDVersion(hostdef):
     openBSDVersionForHost = None
     global gLatestOpenBsdStableVersion
@@ -287,11 +292,14 @@ def openBSDVersion(hostdef):
     
     # 'Stable' OS flavor uses last released version number
     # 'Current' OS flavor uses last released version number + 1
+    # Explicit version (e.g., '68') uses that version directly
     flavor = hostdef[HOSTMAP_FIELD_OSFLAVOR]
     if flavor == OSFLAVOR_STABLE:
         openBSDVersionForHost = gLatestOpenBsdStableVersion
     elif flavor == OSFLAVOR_CURRENT:
         openBSDVersionForHost = str(int(gLatestOpenBsdStableVersion) + 1)
+    elif isExplicitVersion(flavor):
+        openBSDVersionForHost = flavor
     else:
         error("Unknown OpenBSD flavor '%s'" % flavor)
     
