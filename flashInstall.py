@@ -167,7 +167,7 @@ def flashNode(nodeName, manifest):
         assert not containsWhitespace(imagePath), "Absolute path ('%s') to image file '%s' must not contain any whitespace" % (imagePath, imageName)
         assert os.path.isabs(imagePath)
         assert os.path.isfile(imagePath)
-        command = ['dd', 'if=%s' % imagePath, 'of=/dev/%s' % nodeName]
+        command = ['dd', 'status=progress', 'if=%s' % imagePath, 'of=/dev/%s' % nodeName]
         if 'ddOptions' in imageInfo:
             for k,v in imageInfo['ddOptions'].items():
                 assert not containsWhitespace(k)
