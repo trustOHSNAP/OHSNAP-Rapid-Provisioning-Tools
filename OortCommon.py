@@ -1,9 +1,9 @@
-#!python3
+#!/usr/bin/env python3
 # For Python 3.9.10 or later
 
 # ISC License
 # 
-# Copyright (c) 2022-2025 OHSNAP
+# Copyright (c) 2022-2026 OHSNAP
 # 
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
