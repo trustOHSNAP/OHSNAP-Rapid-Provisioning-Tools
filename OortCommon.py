@@ -320,7 +320,11 @@ def copyFileIfNeeded(srcPath, dstPath):
 
     debug("Copy %s -> %s" % (srcPath, dstPath))            
     if needsCopy:
-        shutil.copyfile(srcPath, dstPath)
+        try:
+            shutil.copyfile(srcPath, dstPath)
+        except PermissionError:
+            os.remove(dstPath)
+            shutil.copyfile(srcPath, dstPath)
     else:
         debug("  (Skipping)")
 
